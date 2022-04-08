@@ -1,11 +1,13 @@
 import KeyMap, { cacheValueString } from '../../KeyMap';
-import { allSubstats, ICachedArtifact, MainStatKey, SubstatKey } from '../../Types/artifact';
+import { allSubstats, ICachedArtifact, MainStatKey, SubstatKey, ICachedSubstat } from '../../Types/artifact';
 import { allRarities, allSlotKeys, ArtifactRarity, ArtifactSetKey, Rarity, SlotKey } from '../../Types/consts';
 import { clampPercent, objectKeyMap } from '../../Util/Util';
 import { ArtifactSlotsData, ArtifactStarsData } from './ArtifactData';
 import ArtifactMainStatsData from './artifact_main_gen.json';
 import ArtifactSubstatsData from './artifact_sub_gen.json';
 import ArtifactSubstatLookupTable from './artifact_sub_rolls_gen.json';
+import artifactSubstatRollCorrection from './artifact_sub_rolls_correction_gen.json';
+import { BuildSettingAssumptionLevel } from "../../Types/Build"
 
 const maxStar: Rarity = 5
 
@@ -66,6 +68,104 @@ export default class Artifact {
     const sum = rolls.reduce((a, b) => a + b, 0)
     const max = substatKey ? Artifact.maxSubstatValues(substatKey) * rolls.length : 0
     return max ? clampPercent((sum / max) * 100) : 0
+  }
+
+  static projectSubstatsAtLevel = (artifact: ICachedArtifact, buildSetting?: BuildSettingAssumptionLevel): ICachedSubstat[] => {
+    const { substats, rarity } = artifact
+    const subStatAssumptionLevel = buildSetting?.mainStatAssumptionLevel ?? 0
+
+    if(artifact.level >= subStatAssumptionLevel || !buildSetting || !buildSetting.levelSubStats) return substats
+    const {subStatLevelPriority, subStatRollSelection, subStatRollPolicy} = buildSetting
+
+    const level = subStatAssumptionLevel
+    const maxRolls = Artifact.totalPossibleRolls(rarity)
+    const currentRemaining = Artifact.rollsRemaining(artifact.level, rarity)
+    const baseRollNumber = maxRolls - currentRemaining
+
+    const { numUpgrades, high } = Artifact.rollInfo(rarity)
+    const maxRollNum = high + Math.floor(level / 4)
+    let remainingRolls = maxRollNum - baseRollNumber
+
+    let p : SubstatKey[]
+    switch(subStatRollSelection)
+    {
+      case 1:
+      {
+        p = subStatLevelPriority.filter(stat => stat !== artifact.mainStatKey && stat !== "" && substats.find(substat => (substat.key === stat)))
+        break;
+      }
+      case 2:
+      {
+        p = [...subStatLevelPriority.filter(stat => stat !== artifact.mainStatKey && stat !== "" && substats.find(substat => (substat.key === stat))),
+            ...subStatLevelPriority.filter(stat => stat !== artifact.mainStatKey && stat !== "" && !substats.find(substat => (substat.key === stat)))]
+        break;
+      }
+      default:
+      {
+        p = subStatLevelPriority.filter(stat => stat !== artifact.mainStatKey && stat !== "")
+        break;
+      }
+    }
+    const rollPolicy : number = subStatRollPolicy
+    let maxRollPerStat = 10
+    if(rollPolicy === 1)
+      maxRollPerStat = 1 + Math.floor(remainingRolls / p.length)
+
+    function efficiency(value: number, key: SubstatKey): number {
+      return value / Artifact.maxSubstatValues(key) * 100
+    }
+
+    let newsubstats : ICachedSubstat[] = substats.map(s => ({...s}))
+    for (const priority of p) {
+      let substat = newsubstats.find(substat => (substat.key === priority))
+      if(!substat)
+      {
+        substat = newsubstats.find(substat => (!substat.key))
+        if(substat)
+        {
+          substat.key = priority
+          substat.value = 0
+          substat.rolls = []
+          substat.efficiency = 0
+          substat.accurateValue = 0
+        }
+      }
+      if (substat)
+      {
+        const key : SubstatKey = substat.key as SubstatKey
+        const curRollStat = substat.rolls.length
+        const rollData = Artifact.getSubstatRollData(key, rarity)
+        const allowedRolls = maxRollNum - curRollStat
+        const unit = KeyMap.unit(key)
+        for(let roll = 0; roll < allowedRolls && roll < maxRollPerStat && remainingRolls > 0; roll++)
+        {
+          let newValue = cacheValueString(substat.accurateValue + rollData[rollData.length - 1], unit)
+          newValue = artifactSubstatRollCorrection[rarity]?.[key]?.[newValue] ?? newValue
+          substat.value = parseFloat(newValue)
+
+          const value = substat.value
+          substat.efficiency = efficiency(value, key)
+          const possibleRolls = Artifact.getSubstatRolls(key, value, rarity)
+
+          if (possibleRolls.length) { // Valid Substat
+            //const possibleLengths = new Set(possibleRolls.map(roll => roll.length))
+
+            /*if (possibleLengths.size !== 1) { // Ambiguous Rolls
+              allPossibleRolls.push({ index, substatRolls: possibleRolls })
+            } else { // Unambiguous Rolls
+              totalUnambiguousRolls += possibleRolls[0].length
+            }*/
+
+            substat.rolls = possibleRolls.reduce((best, current) => best.length < current.length ? best : current)
+            substat.efficiency = efficiency(substat.rolls.reduce((a, b) => a + b, 0), key)
+            substat.accurateValue = substat.rolls.reduce((a, b) => a + b, 0)
+          }
+
+          remainingRolls--
+        }
+      }
+    }
+    return newsubstats
   }
 
   //ARTIFACT IN GENERAL

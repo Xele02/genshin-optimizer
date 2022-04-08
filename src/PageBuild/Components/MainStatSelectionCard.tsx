@@ -1,5 +1,5 @@
-import { Info, Replay } from '@mui/icons-material';
-import { Button, CardContent, Divider, Grid, MenuItem, Typography } from '@mui/material';
+import { CheckBox, CheckBoxOutlineBlank, Info, Replay } from '@mui/icons-material';
+import { Button, CardContent, Divider, Grid, MenuItem, Typography, ListItemIcon, ListItemText } from '@mui/material';
 import React from 'react';
 import SlotNameWithIcon from '../../Components/Artifact/SlotNameWIthIcon';
 import BootstrapTooltip from '../../Components/BootstrapTooltip';
@@ -9,20 +9,24 @@ import DropdownButton from '../../Components/DropdownMenu/DropdownButton';
 import SqBadge from '../../Components/SqBadge';
 import StatIcon from '../../Components/StatIcon';
 import KeyMap from '../../KeyMap';
-import { MainStatKey } from '../../Types/artifact';
-import { BuildSetting } from '../../Types/Build';
+import { allSubstats, MainStatKey, SubstatKey } from '../../Types/artifact';
+import { BuildSetting, BuildSettingAssumptionLevel } from '../../Types/Build';
 import { SlotKey } from '../../Types/consts';
 import Artifact from '../../Data/Artifacts/Artifact';
+import {  useTranslation } from 'react-i18next';
 
 export const artifactsSlotsToSelectMainStats = ["sands", "goblet", "circlet"] as const
 
-export default function MainStatSelectionCard({ mainStatAssumptionLevel, mainStatKeys, onChangeMainStatKey, onChangeAssLevel, disabled = false, }: {
+export default function MainStatSelectionCard({ mainStatAssumptionLevel, mainStatKeys, onChangeMainStatKey, onChangeAssLevel, disabled = false, assumptionLevelSetting, onChangeAssumptionLevelSetting }: {
   mainStatAssumptionLevel: number
   mainStatKeys: BuildSetting["mainStatKeys"]
   onChangeMainStatKey: (slotKey: SlotKey, mainStatKey?: MainStatKey) => void
   onChangeAssLevel: (level: number) => void
   disabled?: boolean
+  assumptionLevelSetting: BuildSettingAssumptionLevel
+  onChangeAssumptionLevelSetting: (action) => void
 }) {
+  const { t } = useTranslation("artifact")
   return <CardLight>
     <CardContent sx={{ py: 1 }} >
       <Grid container alignItems="center" spacing={2}>
@@ -76,7 +80,52 @@ export default function MainStatSelectionCard({ mainStatAssumptionLevel, mainSta
         </CardDark>
       })}
     </CardContent>
+    <Divider />
+    <CardContent sx={{ py: 1 }} >
+      <Grid container alignItems="center" spacing={2}>
+        <Grid item flexGrow={1}>
+          <Typography>Artifact Sub Stat</Typography>
+        </Grid>
+        <Grid item>
+          <Button onClick={() => onChangeAssumptionLevelSetting({ levelSubStats: !assumptionLevelSetting.levelSubStats })} startIcon={assumptionLevelSetting.levelSubStats ? <CheckBox /> : <CheckBoxOutlineBlank />}>
+            Level Substats
+          </Button>
+        </Grid>
+      </Grid>
+    </CardContent>
+    <Divider />
+    <CardContent sx={{ py: 1 }} >
+      <Typography>Roll priority : </Typography>
+      <Grid container spacing={1}>
+        {[0, 1, 2, 3].map(idx =>
+          <Grid item>
+        <DropdownButton
+          startIcon={getKey(idx, assumptionLevelSetting) ? StatIcon[getKey(idx, assumptionLevelSetting)] : undefined}
+          title={getKey(idx, assumptionLevelSetting) ? KeyMap.getArtStr(getKey(idx, assumptionLevelSetting)) : t('editor.substat.substatFormat', { value: idx + 1 })}
+          color={getKey(idx, assumptionLevelSetting) ? "success" : "primary"}
+          sx={{ whiteSpace: "nowrap" }}>
+          {getKey(idx, assumptionLevelSetting) && <MenuItem onClick={() => onChangeAssumptionLevelSetting({type:"setSubstatePrio", idx: idx, stat: ""})}>{t`editor.substat.noSubstat`}</MenuItem>}
+          {allSubstats
+            .map(k => <MenuItem key={k} selected={getKey(idx, assumptionLevelSetting) === k} disabled={getKey(idx, assumptionLevelSetting) === k} onClick={() => onChangeAssumptionLevelSetting({type:"setSubstatePrio", idx: idx, stat: k})} >
+              <ListItemIcon>{StatIcon[k]}</ListItemIcon>
+              <ListItemText>{KeyMap.getArtStr(k)}</ListItemText>
+            </MenuItem>)}
+        </DropdownButton>
+        </Grid>)
+      }
+      </Grid>
+      <Typography>Roll policy : </Typography>
+      <Grid container spacing={1}>
+        <Grid item><RollPolicyToggle rollPolicyLevel={assumptionLevelSetting.subStatRollPolicy} setrollPolicyLevel={v => onChangeAssumptionLevelSetting({subStatRollPolicy:v})} /></Grid>
+        <Grid item><RollSelectionToggle rollSelectionLevel={assumptionLevelSetting.subStatRollSelection} setrollSelectionLevel={v => onChangeAssumptionLevelSetting({subStatRollSelection:v})} /></Grid>
+      </Grid>
+    </CardContent>
   </CardLight>
+}
+
+function getKey(idx: number, assumptionLevelSetting: BuildSettingAssumptionLevel) : SubstatKey
+{
+  return assumptionLevelSetting.subStatLevelPriority && assumptionLevelSetting.subStatLevelPriority.length > idx ? assumptionLevelSetting.subStatLevelPriority[idx] : ""
 }
 
 const levels = {
@@ -90,5 +139,26 @@ const levels = {
 function AssumeFullLevelToggle({ mainStatAssumptionLevel = 0, setmainStatAssumptionLevel, disabled }) {
   return <DropdownButton color={mainStatAssumptionLevel ? "warning" : "primary"} disabled={disabled} title={levels[mainStatAssumptionLevel]}>
     {Object.entries(levels).map(([key, text]) => <MenuItem key={key} onClick={() => setmainStatAssumptionLevel(parseInt(key))}>{text}</MenuItem>)}
+  </DropdownButton>
+}
+
+const rollSelection = {
+  0: <span>Create if not exist</span>,
+  1: <span>Roll only existing stat</span>,
+  2: <span>First roll existing then create</span>
+} as const
+function RollSelectionToggle({rollSelectionLevel = 0, setrollSelectionLevel}) {
+  return <DropdownButton title={rollSelection[rollSelectionLevel]}>
+    {Object.entries(rollSelection).map(([key, text]) => <MenuItem key={key} onClick={() => setrollSelectionLevel(parseInt(key))}>{text}</MenuItem>)}
+  </DropdownButton>
+}
+
+const rollPolicy = {
+  0: <span>All roll on same stat</span>,
+  1: <span>Dispatch roll between substat</span>
+} as const
+function RollPolicyToggle({rollPolicyLevel = 0, setrollPolicyLevel}) {
+  return <DropdownButton title={rollPolicy[rollPolicyLevel]}>
+    {Object.entries(rollPolicy).map(([key, text]) => <MenuItem key={key} onClick={() => setrollPolicyLevel(parseInt(key))}>{text}</MenuItem>)}
   </DropdownButton>
 }

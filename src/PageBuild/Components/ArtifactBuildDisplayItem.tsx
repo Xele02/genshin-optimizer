@@ -42,7 +42,7 @@ export default function ArtifactBuildDisplayItem({ index, compareBuild, disabled
   const closeModal = useCallback(() => setshowModal(false), [setshowModal],)
   const openModal = useCallback(() => setshowModal(true), [setshowModal],)
 
-  const { character, data, oldData, teamData, mainStatAssumptionLevel } = dataContext
+  const { character, data, oldData, teamData, assumptionLevelSetting } = dataContext
   const artifactSheets = usePromise(ArtifactSheet.getAll, [])
   const [newOld, setNewOld] = useState(undefined as NewOld | undefined)
   const close = useCallback(() => setNewOld(undefined), [setNewOld],)
@@ -90,7 +90,7 @@ export default function ArtifactBuildDisplayItem({ index, compareBuild, disabled
         <Grid container spacing={1} sx={{ pb: 1 }}>
           {allSlotKeys.map(slotKey =>
             <Grid item xs={6} sm={4} md={3} lg={2} key={slotKey} >
-              <ArtifactCardNano artifactId={data.get(input.art[slotKey].id).value} mainStatAssumptionLevel={mainStatAssumptionLevel} onClick={() => {
+              <ArtifactCardNano artifactId={data.get(input.art[slotKey].id).value} assumptionLevelSetting={assumptionLevelSetting} onClick={() => {
                 const oldId = character.equippedArtifacts[slotKey]
                 const newId = data.get(input.art[slotKey].id).value!
                 setNewOld({ oldId: oldId !== newId ? oldId : undefined, newId })

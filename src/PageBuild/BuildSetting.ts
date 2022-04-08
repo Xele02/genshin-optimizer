@@ -5,7 +5,13 @@ export const initialBuildSettings = (): BuildSetting => ({
   statFilters: {},
   mainStatKeys: { sands: [], goblet: [], circlet: [] },
   optimizationTarget: undefined,
-  mainStatAssumptionLevel: 0,
+  assumptionLevelSetting: {
+    mainStatAssumptionLevel: 0,
+    levelSubStats: false,
+    subStatLevelPriority: [],
+    subStatRollSelection: 0,
+    subStatRollPolicy:0
+  },
   useExcludedArts: false,
   useEquippedArts: false,
   builds: [],

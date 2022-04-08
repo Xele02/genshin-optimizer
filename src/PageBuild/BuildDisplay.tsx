@@ -33,7 +33,7 @@ import useDBState from '../ReactHooks/useDBState';
 import useForceUpdate from '../ReactHooks/useForceUpdate';
 import useTeamData, { getTeamData } from '../ReactHooks/useTeamData';
 import { ICachedArtifact } from '../Types/artifact';
-import { BuildSetting } from '../Types/Build';
+import { BuildSetting, BuildSettingAssumptionLevel } from '../Types/Build';
 import { ICachedCharacter } from '../Types/character';
 import { ArtifactSetKey, CharacterKey } from '../Types/consts';
 import { objPathValue, range } from '../Util/Util';
@@ -79,6 +79,24 @@ function buildSettingsReducer(state: BuildSetting, action): BuildSetting {
       state.setFilters[index] = { key, num }
       return { ...state, setFilters: [...state.setFilters] }//do this because this is a dependency, so needs to be a "new" array
     }
+    case `assumptionLevel`: {
+      const inneraction = action.action
+      switch(inneraction.type)
+      {
+        case 'setSubstatePrio': {
+          const {idx, stat} = inneraction
+          let statPrio = state.assumptionLevelSetting.subStatLevelPriority;
+          for(let statIdx = statPrio.length; statIdx < idx; statIdx++)
+            statPrio[statIdx] = ""
+          statPrio[idx] = stat
+          return { ...state, assumptionLevelSetting:{...state.assumptionLevelSetting} }
+        }
+        default:
+          break;
+      }
+      state.assumptionLevelSetting = { ...state.assumptionLevelSetting, ...inneraction }
+      return { ...state, assumptionLevelSetting:{...state.assumptionLevelSetting} }
+    }
     default:
       break;
   }
@@ -123,9 +141,9 @@ export default function BuildDisplay({ location: { characterKey: propCharacterKe
   const characterDispatch = useCharacterReducer(characterKey)
   const character = useCharacter(characterKey)
   const buildSettings = character?.buildSettings ?? initialBuildSettings()
-  const { plotBase, setFilters, statFilters, mainStatKeys, optimizationTarget, mainStatAssumptionLevel, useExcludedArts, useEquippedArts, builds, buildDate, maxBuildsToShow, levelLow, levelHigh } = buildSettings
+  const { plotBase, setFilters, statFilters, mainStatKeys, optimizationTarget, assumptionLevelSetting, useExcludedArts, useEquippedArts, builds, buildDate, maxBuildsToShow, levelLow, levelHigh } = buildSettings
   const buildsArts = useMemo(() => builds.map(build => build.map(i => database._getArt(i)!)), [builds, database])
-  const teamData = useTeamData(characterKey, mainStatAssumptionLevel)
+  const teamData = useTeamData(characterKey, assumptionLevelSetting)
   const { characterSheet, target: data } = teamData?.[characterKey as CharacterKey] ?? {}
   const compareData = character?.compareData ?? false
 
@@ -135,6 +153,8 @@ export default function BuildDisplay({ location: { characterKey: propCharacterKe
   const buildSettingsDispatch = useCallback((action) =>
     characterDispatch && characterDispatch({ buildSettings: buildSettingsReducer(buildSettings, action) })
     , [characterDispatch, buildSettings])
+
+  const buildAssumptionLevelSettingDispatch = (action) => buildSettingsDispatch({type: "assumptionLevel" , action})
 
   useEffect(() => ReactGA.pageview('/build'), [])
 
@@ -166,11 +186,11 @@ export default function BuildDisplay({ location: { characterKey: propCharacterKe
       if (art.location && !useEquippedArts) return false
       return true
     })
-    const split = compactArtifacts(arts, mainStatAssumptionLevel)
+    const split = compactArtifacts(arts, assumptionLevelSetting)
     const setPerms = [...artSetPerm([setFilters])]
     const totBuildNumber = [...setPerms].map(perm => countBuilds(filterArts(split, perm))).reduce((a, b) => a + b, 0)
     return artsDirty && { split, setPerms, totBuildNumber }
-  }, [characterKey, useExcludedArts, useEquippedArts, mainStatKeys, setFilters, levelLow, levelHigh, artsDirty, database, mainStatAssumptionLevel])
+  }, [characterKey, useExcludedArts, useEquippedArts, mainStatKeys, setFilters, levelLow, levelHigh, artsDirty, database, assumptionLevelSetting])
 
   // Reset the Alert by setting progress to zero.
   useEffect(() => {
@@ -183,7 +203,7 @@ export default function BuildDisplay({ location: { characterKey: propCharacterKe
   useEffect(() => () => cancelToken.current(), [])
   const generateBuilds = useCallback(async () => {
     if (!characterKey || !optimizationTarget || !split || !setPerms) return
-    const teamData = await getTeamData(database, characterKey, mainStatAssumptionLevel, [])
+    const teamData = await getTeamData(database, characterKey, assumptionLevelSetting, [])
     if (!teamData) return
     const workerData = uiDataForTeam(teamData.teamData, characterKey)[characterKey as CharacterKey]?.target.data![0]
     if (!workerData) return
@@ -339,7 +359,7 @@ export default function BuildDisplay({ location: { characterKey: propCharacterKe
       })
     }
     setgeneratingBuilds(false)
-  }, [characterKey, database, totBuildNumber, mainStatAssumptionLevel, maxBuildsToShow, optimizationTarget, plotBase, setPerms, split, buildSettingsDispatch, setFilters, statFilters, maxWorkers])
+  }, [characterKey, database, totBuildNumber, assumptionLevelSetting, maxBuildsToShow, optimizationTarget, plotBase, setPerms, split, buildSettingsDispatch, setFilters, statFilters, maxWorkers])
 
   const characterName = characterSheet?.name ?? "Character Name"
 
@@ -352,11 +372,11 @@ export default function BuildDisplay({ location: { characterKey: propCharacterKe
       data,
       characterSheet,
       character,
-      mainStatAssumptionLevel,
+      assumptionLevelSetting,
       teamData,
       characterDispatch
     }
-  }, [data, characterSheet, character, teamData, characterDispatch, mainStatAssumptionLevel])
+  }, [data, characterSheet, character, teamData, characterDispatch, assumptionLevelSetting])
 
   return <Box display="flex" flexDirection="column" gap={1} sx={{ my: 1 }}>
     <InfoComponent
@@ -452,7 +472,7 @@ export default function BuildDisplay({ location: { characterKey: propCharacterKe
               </CardLight>}
               {/* main stat selector */}
               {characterKey && <MainStatSelectionCard
-                mainStatAssumptionLevel={mainStatAssumptionLevel}
+                mainStatAssumptionLevel={assumptionLevelSetting?.mainStatAssumptionLevel ?? 0}
                 mainStatKeys={mainStatKeys}
                 onChangeMainStatKey={(slotKey, mainStatKey = undefined) => {
                   if (mainStatKey === undefined)
@@ -460,8 +480,10 @@ export default function BuildDisplay({ location: { characterKey: propCharacterKe
                   else
                     buildSettingsDispatch({ type: "mainStatKey", slotKey, mainStatKey })
                 }}
-                onChangeAssLevel={mainStatAssumptionLevel => buildSettingsDispatch({ mainStatAssumptionLevel })}
+                onChangeAssLevel={mainStatAssumptionLevel => buildAssumptionLevelSettingDispatch({ mainStatAssumptionLevel })}
                 disabled={generatingBuilds}
+                assumptionLevelSetting={assumptionLevelSetting}
+                onChangeAssumptionLevelSetting={action => buildAssumptionLevelSettingDispatch( action )}
               />}
             </Grid>
           </Grid>
@@ -538,18 +560,18 @@ export default function BuildDisplay({ location: { characterKey: propCharacterKe
           </Box>
         </CardContent>
       </CardDark>
-      <BuildList {...{ buildsArts, character, characterKey, characterSheet, data, compareData, mainStatAssumptionLevel, characterDispatch, disabled: !!generatingBuilds }} />
+      <BuildList {...{ buildsArts, character, characterKey, characterSheet, data, compareData, assumptionLevelSetting, characterDispatch, disabled: !!generatingBuilds }} />
     </DataContext.Provider>}
   </Box>
 }
-function BuildList({ buildsArts, character, characterKey, characterSheet, data, compareData, mainStatAssumptionLevel, characterDispatch, disabled }: {
+function BuildList({ buildsArts, character, characterKey, characterSheet, data, compareData, assumptionLevelSetting, characterDispatch, disabled }: {
   buildsArts: ICachedArtifact[][],
   character?: ICachedCharacter,
   characterKey?: "" | CharacterKey,
   characterSheet?: CharacterSheet,
   data?: UIData,
   compareData: boolean,
-  mainStatAssumptionLevel: number,
+  assumptionLevelSetting: BuildSettingAssumptionLevel,
   characterDispatch: (action: characterReducerAction) => void
   disabled: boolean,
 }) {
@@ -562,12 +584,12 @@ function BuildList({ buildsArts, character, characterKey, characterSheet, data, 
       build={build}
       characterSheet={characterSheet}
       oldData={data}
-      mainStatAssumptionLevel={mainStatAssumptionLevel}
+      assumptionLevelSetting={assumptionLevelSetting}
       characterDispatch={characterDispatch} >
       <ArtifactBuildDisplayItem index={index} compareBuild={compareData} disabled={disabled} />
     </DataContextWrapper>
     )}
-  </Suspense>, [buildsArts, character, characterKey, characterSheet, data, compareData, mainStatAssumptionLevel, characterDispatch, disabled])
+  </Suspense>, [buildsArts, character, characterKey, characterSheet, data, compareData, assumptionLevelSetting, characterDispatch, disabled])
   return list
 }
 
@@ -576,13 +598,13 @@ type Prop = {
   characterKey: CharacterKey,
   character: ICachedCharacter,
   build: ICachedArtifact[],
-  mainStatAssumptionLevel?: number, characterSheet: CharacterSheet, oldData: UIData,
+  assumptionLevelSetting?: BuildSettingAssumptionLevel, characterSheet: CharacterSheet, oldData: UIData,
   characterDispatch: (action: characterReducerAction) => void
 }
-function DataContextWrapper({ children, characterKey, character, build, characterDispatch, mainStatAssumptionLevel = 0, characterSheet, oldData }: Prop) {
-  const teamData = useTeamData(characterKey, mainStatAssumptionLevel, build)
+function DataContextWrapper({ children, characterKey, character, build, characterDispatch, assumptionLevelSetting, characterSheet, oldData }: Prop) {
+  const teamData = useTeamData(characterKey, assumptionLevelSetting, build)
   if (!teamData) return null
-  return <DataContext.Provider value={{ characterSheet, character, characterDispatch, mainStatAssumptionLevel, data: teamData[characterKey]!.target, teamData, oldData }}>
+  return <DataContext.Provider value={{ characterSheet, character, characterDispatch, assumptionLevelSetting, data: teamData[characterKey]!.target, teamData, oldData }}>
     {children}
   </DataContext.Provider>
 }

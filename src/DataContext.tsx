@@ -6,6 +6,7 @@ import { CharacterKey } from "./Types/consts"
 import { ICachedWeapon } from "./Types/weapon"
 import WeaponSheet from "./Data/Weapons/WeaponSheet"
 import { characterReducerAction } from "./ReactHooks/useCharacterReducer";
+import { BuildSettingAssumptionLevel } from "./Types/Build"
 export type TeamData = Partial<Record<CharacterKey, {
   target: UIData
   buffs: Dict<CharacterKey, UIData>
@@ -19,7 +20,7 @@ export type dataContextObj = {
   characterSheet: CharacterSheet
   data: UIData
   oldData?: UIData
-  mainStatAssumptionLevel: number
+  assumptionLevelSetting?: BuildSettingAssumptionLevel
   teamData: TeamData
   characterDispatch: (action: characterReducerAction) => void
 }

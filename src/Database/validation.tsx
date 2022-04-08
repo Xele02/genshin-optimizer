@@ -193,7 +193,7 @@ export function parseCharacter(obj: any): ICharacter | undefined {
     talent = { auto, skill, burst }
   }
   if (buildSettings && typeof buildSettings === "object") {//buildSettings
-    let { setFilters, statFilters, mainStatKeys, optimizationTarget, mainStatAssumptionLevel, useExcludedArts, useEquippedArts, builds, buildDate, maxBuildsToShow, plotBase, compareBuild, levelLow, levelHigh } = buildSettings ?? {}
+    let { setFilters, statFilters, mainStatKeys, optimizationTarget, assumptionLevelSetting, useExcludedArts, useEquippedArts, builds, buildDate, maxBuildsToShow, plotBase, compareBuild, levelLow, levelHigh } = buildSettings ?? {}
     if (!Array.isArray(setFilters)) setFilters = initialBuildSettings().setFilters
 
     //make sure set effects are all numbers
@@ -218,8 +218,10 @@ export function parseCharacter(obj: any): ICharacter | undefined {
     }
 
     if (!optimizationTarget || !Array.isArray(optimizationTarget)) optimizationTarget = undefined
-    if (typeof mainStatAssumptionLevel !== "number" || mainStatAssumptionLevel < 0 || mainStatAssumptionLevel > 20)
-      mainStatAssumptionLevel = 0
+    if(assumptionLevelSetting === undefined)
+      assumptionLevelSetting = initialBuildSettings().assumptionLevelSetting
+    if (typeof assumptionLevelSetting.mainStatAssumptionLevel !== "number" || assumptionLevelSetting.mainStatAssumptionLevel < 0 || assumptionLevelSetting.mainStatAssumptionLevel > 20)
+      assumptionLevelSetting.mainStatAssumptionLevel = 0
     useExcludedArts = !!useExcludedArts
     useEquippedArts = !!useEquippedArts
     if (!Array.isArray(builds) || !builds.every(b => Array.isArray(b) && b.every(s => typeof s === "string"))) {
@@ -232,7 +234,7 @@ export function parseCharacter(obj: any): ICharacter | undefined {
     if (compareBuild === undefined) compareBuild = false
     if (levelLow === undefined) levelLow = 0
     if (levelHigh === undefined) levelHigh = 20
-    buildSettings = { setFilters, statFilters, mainStatKeys, optimizationTarget, mainStatAssumptionLevel, useExcludedArts, useEquippedArts, builds, buildDate, maxBuildsToShow, plotBase, compareBuild, levelLow, levelHigh }
+    buildSettings = { setFilters, statFilters, mainStatKeys, optimizationTarget, assumptionLevelSetting, useExcludedArts, useEquippedArts, builds, buildDate, maxBuildsToShow, plotBase, compareBuild, levelLow, levelHigh }
   }
 
   if (!conditional)

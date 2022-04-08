@@ -8,6 +8,7 @@ import { input } from "./index";
 import { Data, DisplaySub, Info, Input, NumNode, ReadNode, StrNode } from "./type";
 import { NodeDisplay, UIData } from "./uiData";
 import { constant, customRead, percent, resetData, setReadNodeKeys } from "./utils";
+import { BuildSettingAssumptionLevel } from "../Types/Build"
 
 const asConst = true as const, pivot = true as const
 
@@ -23,11 +24,11 @@ function inferInfoMut(data: Data, source?: Info["source"]): Data {
 
   return data
 }
-function dataObjForArtifact(art: ICachedArtifact, mainStatAssumptionLevel: number = 0): Data {
-  const mainStatVal = Artifact.mainStatValue(art.mainStatKey, art.rarity, Math.max(Math.min(mainStatAssumptionLevel, art.rarity * 4), art.level))
+function dataObjForArtifact(art: ICachedArtifact, assumptionLevelSetting?: BuildSettingAssumptionLevel): Data {
+  const mainStatVal = Artifact.mainStatValue(art.mainStatKey, art.rarity, Math.max(Math.min(assumptionLevelSetting?.mainStatAssumptionLevel ?? 0, art.rarity * 4), art.level))
   const stats: [ArtifactSetKey | MainStatKey | SubstatKey, number][] = []
   stats.push([art.mainStatKey, mainStatVal])
-  art.substats.forEach(({ key, accurateValue }) => key && stats.push([key, accurateValue]))
+  Artifact.projectSubstatsAtLevel(art, assumptionLevelSetting).forEach(({ key, accurateValue }) => key && stats.push([key, accurateValue]))
   return {
     art: {
       ...Object.fromEntries(stats.map(([key, value]) =>

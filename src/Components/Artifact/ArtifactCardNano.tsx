@@ -15,14 +15,15 @@ import ColorText from "../ColoredText";
 import ConditionalWrapper from "../ConditionalWrapper";
 import ImgIcon from "../Image/ImgIcon";
 import StatIcon from "../StatIcon";
+import { BuildSettingAssumptionLevel } from "../../Types/Build"
 
 type Data = {
   artifactId?: string,
-  mainStatAssumptionLevel?: number,
+  assumptionLevelSetting?: BuildSettingAssumptionLevel,
   onClick?: () => void,
 }
 
-export default function ArtifactCardNano({ artifactId, mainStatAssumptionLevel = 0, onClick }: Data) {
+export default function ArtifactCardNano({ artifactId, assumptionLevelSetting, onClick }: Data) {
   const art = useArtifact(artifactId)
   const sheet = usePromise(ArtifactSheet.get(art?.setKey), [art])
   const actionWrapperFunc = useCallback(
@@ -32,10 +33,11 @@ export default function ArtifactCardNano({ artifactId, mainStatAssumptionLevel =
   if (!art) return null
 
 
-  const { slotKey, rarity, level, mainStatKey, substats, location } = art
-  const mainStatLevel = Math.max(Math.min(mainStatAssumptionLevel, rarity * 4), level)
+  const { slotKey, rarity, level, mainStatKey, location } = art
+  const mainStatLevel = Math.max(Math.min(assumptionLevelSetting?.mainStatAssumptionLevel ?? 0, rarity * 4), level)
   const mainStatUnit = KeyMap.unit(mainStatKey)
   const levelVariant = "roll" + (Math.floor(Math.max(level, 0) / 4) + 1)
+  const substats = Artifact.projectSubstatsAtLevel(art, assumptionLevelSetting)
   return <CardDark><ConditionalWrapper condition={!!onClick} wrapper={actionWrapperFunc} >
     <Grid container sx={{ flexWrap: "nowrap" }} className={`grad-${rarity}star`} >
       <Grid item maxWidth="40%" sx={{ mt: -1, mb: -2 }} >

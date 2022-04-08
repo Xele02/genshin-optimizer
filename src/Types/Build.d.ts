@@ -14,7 +14,7 @@ export interface BuildSetting {
     plume?: never,
   },
   optimizationTarget?: string[],
-  mainStatAssumptionLevel: number,
+  assumptionLevelSetting: BuildSettingAssumptionLevel,
   useExcludedArts: boolean,
   useEquippedArts: boolean,
   builds: string[][]
@@ -24,5 +24,12 @@ export interface BuildSetting {
   compareBuild: boolean,
   levelLow: number,
   levelHigh: number,
+}
+export interface BuildSettingAssumptionLevel {
+  mainStatAssumptionLevel: number,
+  levelSubStats: boolean,
+  subStatLevelPriority:SubstatKey[],
+  subStatRollSelection:number,
+  subStatRollPolicy:number,
 }
 export type ArtifactsBySlot = Dict<SlotKey, ICachedArtifact[]>

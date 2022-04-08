@@ -17,7 +17,7 @@ import StatDisplayComponent from '../../Components/Character/StatDisplayComponen
 import { ArtifactDisplayLocationState } from '../../Types/LocationState';
 
 function CharacterArtifactPane({ newBuild = false }: { newBuild?: boolean }) {
-  const { data, character, mainStatAssumptionLevel } = useContext(DataContext)
+  const { data, character, assumptionLevelSetting } = useContext(DataContext)
 
   const { database } = useContext(DatabaseContext)
   const history = useHistory()
@@ -59,7 +59,7 @@ function CharacterArtifactPane({ newBuild = false }: { newBuild?: boolean }) {
             {newBuild ? <Button onClick={equipArts} className="mr-2">Equip artifacts</Button> : <Button color="error" onClick={unequipArts}>Unequip all artifacts</Button>}
           </Grid>
           <Grid item flexGrow={1}></Grid>
-          <Grid item>{!!mainStatAssumptionLevel && <Card sx={{ p: 1, bgcolor: t => t.palette.warning.dark }}><Typography><strong>Assume Main Stats are Level {mainStatAssumptionLevel}</strong></Typography></Card>}</Grid>
+          <Grid item>{!!assumptionLevelSetting?.mainStatAssumptionLevel && <Card sx={{ p: 1, bgcolor: t => t.palette.warning.dark }}><Typography><strong>Assume Main Stats are Level {assumptionLevelSetting.mainStatAssumptionLevel}</strong></Typography></Card>}</Grid>
         </Grid>
       </CardContent>
     </CardLight>
@@ -80,7 +80,7 @@ function CharacterArtifactPane({ newBuild = false }: { newBuild?: boolean }) {
         )}
       </Grid>
       {artIds.map(id => !!id && <Grid item xs={6} md={4} key={id} >
-        <ArtifactCard artifactId={id} mainStatAssumptionLevel={mainStatAssumptionLevel} onEdit={edit} />
+        <ArtifactCard artifactId={id} assumptionLevelSetting={assumptionLevelSetting} onEdit={edit} />
       </Grid>)}
     </Grid>
   </>

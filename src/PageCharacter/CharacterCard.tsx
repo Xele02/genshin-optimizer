@@ -48,7 +48,7 @@ export default function CharacterCard({ characterKey, artifactChildren, weaponCh
     character,
     data,
     characterSheet,
-    mainStatAssumptionLevel: 0,
+    assumptionLevelSetting: undefined,
     teamData,
     characterDispatch
   }

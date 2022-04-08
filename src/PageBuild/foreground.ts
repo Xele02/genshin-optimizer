@@ -5,7 +5,7 @@ import { formulaString } from "../Formula/debug";
 import { Data, NumNode } from "../Formula/type";
 import { constant, setReadNodeKeys } from "../Formula/utils";
 import { allMainStatKeys, allSubstats, ICachedArtifact } from "../Types/artifact";
-import { SetFilter } from "../Types/Build";
+import { SetFilter, BuildSettingAssumptionLevel } from "../Types/Build";
 import { allSlotKeys, ArtifactSetKey } from "../Types/consts";
 import { deepClone, objectKeyMap, objectMap } from "../Util/Util";
 import type { ArtifactBuildData, ArtifactsBySlot, DynStat, RequestFilter } from "./background";
@@ -17,7 +17,7 @@ export const dynamicData = {
   artSet: objectMap(input.artSet, (_, key) => dynamic.dyn[key]),
 }
 
-export function compactArtifacts(arts: ICachedArtifact[], mainStatAssumptionLevel: number): ArtifactsBySlot {
+export function compactArtifacts(arts: ICachedArtifact[], buildSetting?: BuildSettingAssumptionLevel): ArtifactsBySlot {
   const result: ArtifactsBySlot = {
     base: {},
     values: { flower: [], plume: [], goblet: [], circlet: [], sands: [] }
@@ -25,14 +25,14 @@ export function compactArtifacts(arts: ICachedArtifact[], mainStatAssumptionLeve
   const keys = new Set<string>()
 
   for (const art of arts) {
-    const mainStatVal = Artifact.mainStatValue(art.mainStatKey, art.rarity, Math.max(Math.min(mainStatAssumptionLevel, art.rarity * 4), art.level))
+    const mainStatVal = Artifact.mainStatValue(art.mainStatKey, art.rarity, Math.max(Math.min(buildSetting?.mainStatAssumptionLevel ?? 0, art.rarity * 4), art.level))
 
     const data: ArtifactBuildData = {
       id: art.id, set: art.setKey,
       values: {
         [art.setKey]: 1,
         [art.mainStatKey]: art.mainStatKey.endsWith('_') ? mainStatVal / 100 : mainStatVal,
-        ...Object.fromEntries(art.substats.map(substat =>
+        ...Object.fromEntries(Artifact.projectSubstatsAtLevel(art, buildSetting).map(substat =>
           [substat.key, substat.key.endsWith('_') ? substat.accurateValue / 100 : substat.accurateValue]))
       },
     }

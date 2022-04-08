@@ -15,6 +15,7 @@ import { ICachedWeapon } from "../Types/weapon";
 import { objectMap } from "../Util/Util";
 import useForceUpdate from "./useForceUpdate";
 import usePromise from "./usePromise";
+import { BuildSettingAssumptionLevel } from "../Types/Build"
 
 type TeamDataBundle = {
   team: CharacterKey[],
@@ -22,10 +23,10 @@ type TeamDataBundle = {
   teamBundle: Dict<CharacterKey, CharBundle>
 }
 
-export default function useTeamData(characterKey: CharacterKey | "", mainStatAssumptionLevel: number = 0, overrideArt?: ICachedArtifact[]): TeamData | undefined {
+export default function useTeamData(characterKey: CharacterKey | "", assumptionLevelSetting?: BuildSettingAssumptionLevel, overrideArt?: ICachedArtifact[]): TeamData | undefined {
   const { database } = useContext(DatabaseContext)
   const [dbDirty, setDbDirty] = useForceUpdate()
-  const teamDataBundle = usePromise(getTeamData(database, characterKey, mainStatAssumptionLevel, overrideArt), [dbDirty, characterKey, database, mainStatAssumptionLevel, overrideArt])
+  const teamDataBundle = usePromise(getTeamData(database, characterKey, assumptionLevelSetting, overrideArt), [dbDirty, characterKey, database, assumptionLevelSetting, overrideArt])
 
   const { team = [], teamData, teamBundle } = teamDataBundle ?? {}
 
@@ -61,10 +62,10 @@ export default function useTeamData(characterKey: CharacterKey | "", mainStatAss
   return data
 }
 
-export async function getTeamData(database: ArtCharDatabase, characterKey: CharacterKey | "", mainStatAssumptionLevel: number = 0, overrideArt?: ICachedArtifact[]):
+export async function getTeamData(database: ArtCharDatabase, characterKey: CharacterKey | "", assumptionLevelSetting?: BuildSettingAssumptionLevel, overrideArt?: ICachedArtifact[]):
   Promise<TeamDataBundle | undefined> {
   if (!characterKey) return
-  const char1DataBundle = await getCharDataBundle(database, characterKey, mainStatAssumptionLevel, overrideArt)
+  const char1DataBundle = await getCharDataBundle(database, characterKey, assumptionLevelSetting, overrideArt)
   if (!char1DataBundle) return
   const team: CharacterKey[] = [characterKey]
   const teamBundle = { [characterKey]: char1DataBundle }
@@ -88,7 +89,7 @@ type CharBundle = {
   weaponSheet: WeaponSheet,
   data: Data[]
 }
-async function getCharDataBundle(database: ArtCharDatabase, characterKey: CharacterKey | "", mainStatAssumptionLevel: number = 0, overrideArt?: ICachedArtifact[])
+async function getCharDataBundle(database: ArtCharDatabase, characterKey: CharacterKey | "", assumptionLevelSetting?: BuildSettingAssumptionLevel, overrideArt?: ICachedArtifact[])
   : Promise<CharBundle | undefined> {
   if (!characterKey) return
   const character = database._getChar(characterKey)
@@ -101,7 +102,7 @@ async function getCharDataBundle(database: ArtCharDatabase, characterKey: Charac
   if (!characterSheet || !weaponSheet || !artifactSheetsData) return
   const artifacts = (overrideArt ?? Object.values(character.equippedArtifacts).map(a => database._getArt(a))).filter(a => a) as ICachedArtifact[]
   const data = [
-    ...artifacts.map(a => dataObjForArtifact(a, mainStatAssumptionLevel)),
+    ...artifacts.map(a => dataObjForArtifact(a, assumptionLevelSetting)),
     dataObjForCharacter(character),
     characterSheet.getData(character.elementKey),
     dataObjForWeapon(weapon),

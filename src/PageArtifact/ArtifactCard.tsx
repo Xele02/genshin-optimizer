@@ -24,18 +24,19 @@ import { CharacterKey, Rarity } from '../Types/consts';
 import { clamp, clamp01 } from '../Util/Util';
 import PercentBadge from './PercentBadge';
 import { probability } from './RollProbability';
+import { BuildSettingAssumptionLevel } from "../Types/Build"
 
 type Data = {
   artifactId?: string,
   artifactObj?: ICachedArtifact,
   onEdit?: (id: string) => void,
-  onDelete?: (id: string) => void, mainStatAssumptionLevel?: number,
+  onDelete?: (id: string) => void, assumptionLevelSetting?: BuildSettingAssumptionLevel,
   effFilter?: Set<SubstatKey>,
   probabilityFilter?: Dict<SubstatKey, number>
 }
 const allSubstatFilter = new Set(allSubstats)
 
-export default function ArtifactCard({ artifactId, artifactObj, onEdit, onDelete, mainStatAssumptionLevel = 0, effFilter = allSubstatFilter, probabilityFilter }: Data): JSX.Element | null {
+export default function ArtifactCard({ artifactId, artifactObj, onEdit, onDelete, assumptionLevelSetting, effFilter = allSubstatFilter, probabilityFilter }: Data): JSX.Element | null {
   const { t } = useTranslation(["artifact"]);
   const { database } = useContext(DatabaseContext)
   const databaseArtifact = useArtifact(artifactId)
@@ -46,8 +47,9 @@ export default function ArtifactCard({ artifactId, artifactObj, onEdit, onDelete
   const art = artifactObj ?? databaseArtifact
   if (!art) return null
 
-  const { id, lock, slotKey, rarity, level, mainStatKey, substats, exclude, location = "" } = art
-  const mainStatLevel = Math.max(Math.min(mainStatAssumptionLevel, rarity * 4), level)
+  const { id, lock, slotKey, rarity, level, mainStatKey, exclude, location = "" } = art
+  const substats = Artifact.projectSubstatsAtLevel(art, assumptionLevelSetting)
+  const mainStatLevel = Math.max(Math.min(assumptionLevelSetting?.mainStatAssumptionLevel ?? 0, rarity * 4), level)
   const mainStatUnit = KeyMap.unit(mainStatKey)
   const levelVariant = "roll" + (Math.floor(Math.max(level, 0) / 4) + 1)
   const { currentEfficiency, maxEfficiency } = Artifact.getArtifactEfficiency(art, effFilter)

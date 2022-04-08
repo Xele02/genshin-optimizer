@@ -31,6 +31,7 @@ import CharacterArtifactPane from './CharacterDisplay/CharacterArtifactPane';
 import CharacterOverviewPane from './CharacterDisplay/CharacterOverviewPane';
 import CharacterTalentPane from './CharacterDisplay/CharacterTalentPane';
 import CharacterTeamBuffsPane from './CharacterDisplay/CharacterTeamBuffsPane';
+import { BuildSettingAssumptionLevel } from "../Types/Build"
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -57,12 +58,12 @@ type CharacterDisplayCardProps = {
   characterKey: CharacterKey,
   footer?: JSX.Element
   newteamData?: TeamData,
-  mainStatAssumptionLevel?: number,
+  assumptionLevelSetting?: BuildSettingAssumptionLevel,
   onClose?: (any) => void,
   tabName?: string,
 }
-export default function CharacterDisplayCard({ characterKey, footer, newteamData, mainStatAssumptionLevel = 0, onClose, tabName }: CharacterDisplayCardProps) {
-  const teamData = useTeamData(characterKey, mainStatAssumptionLevel)
+export default function CharacterDisplayCard({ characterKey, footer, newteamData, assumptionLevelSetting, onClose, tabName }: CharacterDisplayCardProps) {
+  const teamData = useTeamData(characterKey, assumptionLevelSetting)
   const { character, characterSheet, target: charUIData } = teamData?.[characterKey] ?? {}
 
   // set initial state to false, because it fails to check validity of the tab values on 1st load
@@ -77,13 +78,13 @@ export default function CharacterDisplayCard({ characterKey, footer, newteamData
     return {
       character,
       characterSheet,
-      mainStatAssumptionLevel,
+      assumptionLevelSetting,
       data: (newteamData ? newteamData[characterKey]!.target : charUIData),
       teamData: (newteamData ? newteamData : teamData),
       oldData: (compareData && newteamData) ? charUIData : undefined,
       characterDispatch
     }
-  }, [character, characterSheet, mainStatAssumptionLevel, newteamData, charUIData, teamData, characterDispatch, characterKey, compareData])
+  }, [character, characterSheet, assumptionLevelSetting, newteamData, charUIData, teamData, characterDispatch, characterKey, compareData])
 
   if (!teamData || !character || !characterSheet || !charUIData || !dataContextValue) return <></>
 
@@ -108,7 +109,7 @@ export default function CharacterDisplayCard({ characterKey, footer, newteamData
             </SolidToggleButtonGroup>}
           </Grid>
           <Grid item flexGrow={1} />
-          {!!mainStatAssumptionLevel && <Grid item><Card sx={{ p: 1, bgcolor: t => t.palette.warning.dark }}><Typography><strong>Assume Main Stats are Level {mainStatAssumptionLevel}</strong></Typography></Card></Grid>}
+          {!!assumptionLevelSetting?.mainStatAssumptionLevel && <Grid item><Card sx={{ p: 1, bgcolor: t => t.palette.warning.dark }}><Typography><strong>Assume Main Stats are Level {assumptionLevelSetting.mainStatAssumptionLevel}</strong></Typography></Card></Grid>}
           {!!onClose && <Grid item>
             <CloseButton onClick={onClose} />
           </Grid>}
